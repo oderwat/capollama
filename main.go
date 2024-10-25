@@ -1,106 +1,47 @@
 package main
 
 import (
-	"bytes"
-	"encoding/base64"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/alexflint/go-arg"
+	"github.com/ollama/ollama/api"
 )
 
-const OLLAMA_HOST = "http://192.168.1.230:11434"
-
-type OllamaMessage struct {
-	Role    string
-	Content string
-	Images  []string
-}
-
-type OllamaRequest struct {
-	Model    string
-	Stream   bool
-	Messages []OllamaMessage
-	Format   string
-	Options  []string
-}
-
-type OllamaResponse struct {
-	Message OllamaMessage `json:"message"`
-}
-
-func GenerateWithImage(prompt, imagePath string) (string, error) {
+func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
 	// First, convert the image to base64
 	imageData, err := os.ReadFile(imagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read image: %w", err)
 	}
 
-	base64Image := base64.StdEncoding.EncodeToString(imageData)
-
-	msg := OllamaMessage{
+	msg := api.Message{
 		Role:    "user",
 		Content: prompt,
-		Images:  []string{base64Image},
+		Images:  []api.ImageData{imageData},
 	}
 
-	// Prepare the request body
-	reqBody := OllamaRequest{
-		Model:    "x/llama3.2-vision",
-		Messages: []OllamaMessage{msg},
-		Stream:   false,
+	ctx := context.Background()
+	req := &api.ChatRequest{
+		Model:    model,
+		Messages: []api.Message{msg},
 	}
 
-	// Marshal the request body to JSON
-	jsonData, err := json.Marshal(reqBody)
+	var response strings.Builder
+	respFunc := func(resp api.ChatResponse) error {
+		response.WriteString(resp.Message.Content)
+		return nil
+	}
+
+	err = ol.Chat(ctx, req, respFunc)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+		log.Fatal(err)
 	}
-
-	// Create a new request
-	req, err := http.NewRequest(
-		"POST",
-		OLLAMA_HOST+"/api/chat",
-		bytes.NewBuffer(jsonData),
-	)
-	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
-	}
-
-	// Set content-type header
-	req.Header.Set("Content-Type", "application/json")
-
-	// Make the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to make request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Check status code
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	// Parse the response
-	var response OllamaResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
-	return response.Message.Content, nil
+	return response.String(), nil
 }
 
 // ProcessImages walks through a given path and processes image files
@@ -156,6 +97,7 @@ type Args struct {
 	StartCaption  string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
 	EnddCaption   string `arg:"--end,-e" help:"End the caption with this (in the style of 'something')"`
 	Prompt        string `arg:"--prompt,-p" help:"The prompt to use" default:"Please describe the content and style of this image in detail. Answer only with one sentence that is starting with \"A ...\""`
+	Model         string `arg:"--model,-m" help:"The model that will be used (must be a vision model like \"llava\")" default:"x/llama3.2-vision"`
 }
 
 func main() {
@@ -163,9 +105,14 @@ func main() {
 
 	arg.MustParse(&args)
 
+	ol, err := api.ClientFromEnvironment()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	//  and mention "colorized photo"
-	err := ProcessImages(args.Path, func(path string, root string) {
-		captionText, err := GenerateWithImage(args.Prompt, path)
+	err = ProcessImages(args.Path, func(path string, root string) {
+		captionText, err := GenerateWithImage(ol, args.Model, args.Prompt, path)
 		if err != nil {
 			log.Fatalf("Aborting because of %v", err)
 		}
