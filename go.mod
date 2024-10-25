@@ -1,4 +1,4 @@
-module metatexx.dev/h.raaf/capollama
+module github.com/oderwat/capollama
 
 go 1.23.2
 
