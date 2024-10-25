@@ -2,10 +2,9 @@ module github.com/oderwat/capollama
 
 go 1.23.2
 
-require github.com/alexflint/go-arg v1.5.1
-
 require (
-	github.com/alexflint/go-scalar v1.2.0 // indirect
-	github.com/ollama/ollama v0.3.14 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
+	github.com/alexflint/go-arg v1.5.1
+	github.com/ollama/ollama v0.3.14
 )
+
+require github.com/alexflint/go-scalar v1.2.0 // indirect
