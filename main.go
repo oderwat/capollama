@@ -138,7 +138,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Aborting because of %v", err)
 		}
-		captionText = args.StartCaption + captionText + args.EndCaption
+		captionText = strings.TrimSpace(args.StartCaption + " " + captionText + " " + args.EndCaption)
 		fmt.Printf("%s: %s\n", strings.TrimPrefix(path, root), captionText)
 		if !args.DryRun {
 			err := os.WriteFile(captionFile, []byte(captionText), 0644)
