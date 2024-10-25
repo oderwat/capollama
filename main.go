@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"log"
 	"os"
@@ -11,6 +12,24 @@ import (
 	"github.com/alexflint/go-arg"
 	"github.com/ollama/ollama/api"
 )
+
+type Args struct {
+	Path          string `arg:"positional,required" help:"Path to an image or a directory with images"`
+	WriteCaptions bool   `arg:"--write-caption,-w" help:"Write captions as .txt (stripping the original extension)"`
+	StartCaption  string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
+	EnddCaption   string `arg:"--end,-e" help:"End the caption with this (in the style of 'something')"`
+	Prompt        string `arg:"--prompt,-p" help:"The prompt to use" default:"Please describe the content and style of this image in detail. Answer only with one sentence that is starting with \"A ...\""`
+	Model         string `arg:"--model,-m" help:"The model that will be used (must be a vision model like \"llava\")" default:"x/llama3.2-vision"`
+}
+
+const appName = "capollama"
+
+//go:embed .version
+var fullVersion string
+
+func (Args) Version() string {
+	return appName + " " + fullVersion
+}
 
 func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
 	// First, convert the image to base64
@@ -89,15 +108,6 @@ func ProcessImages(path string, processFunc func(imagePath, rootDir string)) err
 func isImageFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	return ext == ".jpg" || ext == ".jpeg" || ext == ".png"
-}
-
-type Args struct {
-	Path          string `arg:"positional,required" help:"Path to an image or a directory with images"`
-	WriteCaptions bool   `arg:"--write-caption,-w" help:"Write captions as .txt (stripping the original extension)"`
-	StartCaption  string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
-	EnddCaption   string `arg:"--end,-e" help:"End the caption with this (in the style of 'something')"`
-	Prompt        string `arg:"--prompt,-p" help:"The prompt to use" default:"Please describe the content and style of this image in detail. Answer only with one sentence that is starting with \"A ...\""`
-	Model         string `arg:"--model,-m" help:"The model that will be used (must be a vision model like \"llava\")" default:"x/llama3.2-vision"`
 }
 
 func main() {
