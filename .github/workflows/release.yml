@@ -41,11 +41,11 @@ jobs:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
         run: |
-          go build -o capollama-${{ matrix.suffix }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          go build -o ${{ matrix.os == 'windows' && 'capollama.exe' || 'capollama' }}
 
       - name: Create release artifact
         run: |
-          zip capollama-${{ matrix.suffix }}.zip capollama-${{ matrix.suffix }}${{ matrix.os == 'windows' && '.exe' || '' }} README.md LICENSE.txt
+          zip capollama-${{ matrix.suffix }}.zip ${{ matrix.os == 'windows' && 'capollama.exe' || 'capollama' }} README.md LICENSE.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
