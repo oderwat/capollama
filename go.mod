@@ -1,6 +1,6 @@
 module github.com/oderwat/capollama
 
-go 1.23.2
+go 1.22.5
 
 require (
 	github.com/alexflint/go-arg v1.5.1

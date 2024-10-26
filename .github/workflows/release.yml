@@ -1,0 +1,60 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: darwin
+            arch: amd64
+            suffix: mac-amd64
+          - os: darwin
+            arch: arm64
+            suffix: mac-arm64
+          - os: windows
+            arch: amd64
+            suffix: windows-amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -o capollama-${{ matrix.suffix }}${{ matrix.os == 'windows' && '.exe' || '' }}
+
+      - name: Create release artifact
+        run: |
+          zip capollama-${{ matrix.suffix }}.zip capollama-${{ matrix.suffix }}${{ matrix.os == 'windows' && '.exe' || '' }} README.md LICENSE.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: capollama-${{ matrix.suffix }}
+          path: capollama-${{ matrix.suffix }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            */capollama-*.zip
