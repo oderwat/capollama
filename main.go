@@ -13,7 +13,7 @@ import (
 	"github.com/ollama/ollama/api"
 )
 
-type Args struct {
+type args struct {
 	Path         string `arg:"positional,required" help:"Path to an image or a directory with images"`
 	DryRun       bool   `arg:"--dry-run,-n" help:"Don't write captions as .txt (stripping the original extension)"`
 	StartCaption string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
@@ -28,7 +28,7 @@ const appName = "capollama"
 //go:embed .version
 var fullVersion string
 
-func (Args) Version() string {
+func (args) Version() string {
 	return appName + " " + fullVersion
 }
 
@@ -112,7 +112,7 @@ func isImageFile(path string) bool {
 }
 
 func main() {
-	var args Args
+	var args args
 
 	arg.MustParse(&args)
 
