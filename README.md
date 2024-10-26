@@ -18,7 +18,11 @@ Capollama is a command-line tool that generates image captions using Ollama's vi
 - [Ollama](https://ollama.ai/) installed and running as server
 - A vision-capable model pulled (like `llava` or `llama3.2-vision`)
 
-## Installation
+## Installation precompiled binary
+
+Install from [Release Page](https://github.com/oderwat/capollama/releases/latest)
+
+### Installation from source (needs Go >=1.22 installed)
 
 ```bash
 go install github.com/oderwat/capollama@latest
