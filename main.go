@@ -34,6 +34,34 @@ func (args) Version() string {
 
 func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
 	// First, convert the image to base64
+	imgData, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image: %w", err)
+	}
+
+	req := &api.GenerateRequest{
+		Model:  model,
+		Prompt: prompt,
+		Images: []api.ImageData{imgData},
+	}
+
+	ctx := context.Background()
+	var response strings.Builder
+	respFunc := func(resp api.GenerateResponse) error {
+		response.WriteString(resp.Response)
+		return nil
+	}
+
+	err = ol.Generate(ctx, req, respFunc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return response.String(), nil
+}
+
+/*
+func ChatWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
+	// First, convert the image to base64
 	imageData, err := os.ReadFile(imagePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read image: %w", err)
@@ -63,6 +91,7 @@ func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string,
 	}
 	return response.String(), nil
 }
+*/
 
 // ProcessImages walks through a given path and processes image files
 func ProcessImages(path string, processFunc func(imagePath, rootDir string)) error {
@@ -135,6 +164,7 @@ func main() {
 		}
 
 		captionText, err := GenerateWithImage(ol, args.Model, args.Prompt, path)
+		//captionText, err := ChatWithImage(ol, args.Model, args.Prompt, path)
 		if err != nil {
 			log.Fatalf("Aborting because of %v", err)
 		}
