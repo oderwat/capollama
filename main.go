@@ -14,13 +14,16 @@ import (
 )
 
 type args struct {
-	Path         string `arg:"positional,required" help:"Path to an image or a directory with images"`
-	DryRun       bool   `arg:"--dry-run,-n" help:"Don't write captions as .txt (stripping the original extension)"`
-	StartCaption string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
-	EndCaption   string `arg:"--end,-e" help:"End the caption with this (in the style of 'something')"`
-	Prompt       string `arg:"--prompt,-p" help:"The prompt to use" default:"Please describe the content and style of this image in detail. Answer only with one sentence that is starting with \"A ...\""`
-	Model        string `arg:"--model,-m" help:"The model that will be used (must be a vision model like \"llava\")" default:"x/llama3.2-vision"`
-	Force        bool   `arg:"--force,-f" help:"Also process the image if a file with .txt extension exists"`
+	Path             string `arg:"positional,required" help:"Path to an image or a directory with images"`
+	DryRun           bool   `arg:"--dry-run,-n" help:"Don't write captions as .txt (stripping the original extension)"`
+	StartCaption     string `arg:"--start,-s" help:"Start the caption with this (image of Leela the dog,)"`
+	EndCaption       string `arg:"--end,-e" help:"End the caption with this (in the style of 'something')"`
+	Prompt           string `arg:"--prompt,-p" help:"The prompt to use" default:"Please describe the content and style of this image in detail. Answer only with one sentence that is starting with \"A ...\""`
+	ForceOneSentence bool   `arg:"--force-one-sentence" help:"Stops generation after the first period (.)"`
+	UseChatAPI       bool   `arg:"--use-chat-api,-c" help:"Use the chat API instead of the generate API"`
+	System           string `arg:"--system" help:"The system prompt that will be used (does not work with chat API)" default:"Analyse images in a neutral way. Describe foreground, background and style in detail."`
+	Model            string `arg:"--model,-m" help:"The model that will be used (must be a vision model like \"llava\")" default:"x/llama3.2-vision"`
+	Force            bool   `arg:"--force,-f" help:"Also process the image if a file with .txt extension exists"`
 }
 
 const appName = "capollama"
@@ -32,7 +35,20 @@ func (args) Version() string {
 	return appName + " " + fullVersion
 }
 
-func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
+func options(args args) map[string]any {
+	opts := map[string]any{
+		"num_predict": 200,
+		"temperature": 0,
+		"seed":        1,
+	}
+	if args.ForceOneSentence {
+		opts["stop"] = []string{"."}
+
+	}
+	return opts
+}
+
+func GenerateWithImage(ol *api.Client, model string, prompt string, options map[string]any, system string, imagePath string) (string, error) {
 	// First, convert the image to base64
 	imgData, err := os.ReadFile(imagePath)
 	if err != nil {
@@ -40,9 +56,11 @@ func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string,
 	}
 
 	req := &api.GenerateRequest{
-		Model:  model,
-		Prompt: prompt,
-		Images: []api.ImageData{imgData},
+		Model:   model,
+		Prompt:  prompt,
+		Images:  []api.ImageData{imgData},
+		Options: options,
+		System:  system,
 	}
 
 	ctx := context.Background()
@@ -59,8 +77,7 @@ func GenerateWithImage(ol *api.Client, model, prompt, imagePath string) (string,
 	return response.String(), nil
 }
 
-/*
-func ChatWithImage(ol *api.Client, model, prompt, imagePath string) (string, error) {
+func ChatWithImage(ol *api.Client, model string, prompt string, options map[string]any, imagePath string) (string, error) {
 	// First, convert the image to base64
 	imageData, err := os.ReadFile(imagePath)
 	if err != nil {
@@ -77,6 +94,7 @@ func ChatWithImage(ol *api.Client, model, prompt, imagePath string) (string, err
 	req := &api.ChatRequest{
 		Model:    model,
 		Messages: []api.Message{msg},
+		Options:  options,
 	}
 
 	var response strings.Builder
@@ -91,7 +109,6 @@ func ChatWithImage(ol *api.Client, model, prompt, imagePath string) (string, err
 	}
 	return response.String(), nil
 }
-*/
 
 // ProcessImages walks through a given path and processes image files
 func ProcessImages(path string, processFunc func(imagePath, rootDir string)) error {
@@ -163,8 +180,12 @@ func main() {
 			}
 		}
 
-		captionText, err := GenerateWithImage(ol, args.Model, args.Prompt, path)
-		//captionText, err := ChatWithImage(ol, args.Model, args.Prompt, path)
+		var captionText string
+		if args.UseChatAPI {
+			captionText, err = ChatWithImage(ol, args.Model, args.Prompt, options(args), path)
+		} else {
+			captionText, err = GenerateWithImage(ol, args.Model, args.Prompt, options(args), args.System, path)
+		}
 		if err != nil {
 			log.Fatalf("Aborting because of %v", err)
 		}
